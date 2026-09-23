@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>The Hour Desk</title>
+  <meta name="description" content="A living noticeboard. The hour turns, the desk stays." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
+  <script src="./app.js" defer></script>
+</head>
+<body>
+  <div class="grain" aria-hidden="true"></div>
+  <header class="mast">
+    <p class="mark">Est. this afternoon</p>
+    <h1>The Hour Desk</h1>
+    <p class="lede">A blotter that turns over every sixty minutes. Write something. Keep it in the drawer, or pin it where strangers can read it.</p>
+    <div class="clock-row">
+      <div class="clock" id="clock">
+        <span class="face" id="face">--:--:--</span>
+        <span class="zone">local time</span>
+      </div>
+      <div class="until">
+        <span class="label">next turn</span>
+        <span id="until">--:--</span>
+      </div>
+    </div>
+    <nav class="auth" id="authbar">
+      <button type="button" class="ghost" data-open="login">Sign in</button>
+      <button type="button" class="ink" data-open="signup">Open a desk</button>
+    </nav>
+  </header>
+
+  <main>
+    <section class="feature card" id="feature">
+      <p class="kicker">This hour</p>
+      <h2 id="feat-title">The lamp is still warm</h2>
+      <p id="feat-body">The desk is waiting for the first note of the hour.</p>
+      <p class="meta" id="feat-meta"></p>
+    </section>
+
+    <section class="compose card" id="composer" hidden>
+      <h2>Leave a note</h2>
+      <form id="note-form">
+        <label for="body">What belongs on the blotter</label>
+        <textarea id="body" name="body" maxlength="800" required placeholder="A sentence you would not mind finding later."></textarea>
+        <div class="row">
+          <label class="check">
+            <input type="checkbox" id="is_public" />
+            Pin this to the public board
+          </label>
+          <button type="submit" class="ink">Pin it</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="board">
+      <div class="board-head">
+        <h2>Public board</h2>
+        <p>Only notes marked public land here. Everything else stays in your drawer.</p>
+      </div>
+      <ul id="board" class="notes"></ul>
+    </section>
+
+    <section class="drawer card" id="drawer" hidden>
+      <h2>Your drawer</h2>
+      <ul id="mine" class="notes compact"></ul>
+    </section>
+  </main>
+
+  <dialog id="dialog">
+    <form method="dialog" class="auth-form" id="auth-form">
+      <h2 id="dlg-title">Sign in</h2>
+      <p class="hint" id="dlg-hint">Use a real email. Nothing fancy.</p>
+      <label>Email <input type="email" id="email" required autocomplete="email" /></label>
+      <label>Password <input type="password" id="password" required minlength="6" autocomplete="current-password" /></label>
+      <p class="err" id="auth-err" hidden></p>
+      <div class="row">
+        <button value="cancel" class="ghost">Cancel</button>
+        <button value="go" class="ink" id="auth-go" type="submit">Continue</button>
+      </div>
+    </form>
+  </dialog>
+
+  <footer>
+    <p>The Hour Desk does not keep score. It just keeps hours.</p>
+  </footer>
+</body>
+</html>
