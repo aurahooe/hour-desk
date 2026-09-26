@@ -1,164 +1,78 @@
 const SUPABASE_URL = "https://tqfocdktvjuwoiyfgesb.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRxZm9jZGt0dmp1d29peWZnZXNiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk5MDg0NTIsImV4cCI6MjEwNTQ4NDQ1Mn0.8TW4fQCQHc4c_xTNBEwOK3lSC9HYCbkTbfXuYQB-S8g";
-
-const FALLBACK = [
-  ["The blotter drinks the light", "Paper holds more than ink. It holds the pause between two hours."],
-  ["A window left a square on the desk", "If you write now, you are writing into a room that already exists."],
-  ["Someone sharpened a pencil and left", "The shavings are gone. The point remains. Use it."],
-  ["Rain on the glass, dry on the page", "Public notes are pins. Private notes are pockets."],
-  ["The hour is a thin envelope", "Slip a sentence in before it closes."]
-];
-
-const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-let mode = "login";
-let me = null;
-
-function pad(n) { return String(n).padStart(2, "0"); }
-function hourKey(d = new Date()) {
-  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())}T${pad(d.getUTCHours())}`;
-}
-
+const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRxZm9jZGt0dmp1d29peWZnZXNiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk5MDg0NTIsImV4cCI6MjEwNTQ4NDQ1Mn0.8TW4fQCQHc4c_xTNBEwOK3lSC9HYCbkTbfXuYQB-S8g";
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+let session = null;
+const $ = (id) => document.getElementById(id);
 function tick() {
-  const d = new Date();
-  document.getElementById("face").textContent =
-    `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
-  const next = new Date(d);
-  next.setMinutes(60, 0, 0);
-  const left = Math.max(0, next - d);
-  const m = Math.floor(left / 60000);
-  const s = Math.floor((left % 60000) / 1000);
-  document.getElementById("until").textContent = `${pad(m)}:${pad(s)}`;
+  const n = new Date();
+  $("clock").textContent = n.toLocaleString(undefined, { weekday: "short", hour: "2-digit", minute: "2-digit", second: "2-digit" });
 }
-
-function setAuthBar(user) {
-  const bar = document.getElementById("authbar");
-  if (!user) {
-    bar.innerHTML = `<button type="button" class="ghost" data-open="login">Sign in</button>
-      <button type="button" class="ink" data-open="signup">Open a desk</button>`;
-    document.getElementById("composer").hidden = true;
-    document.getElementById("drawer").hidden = true;
-    return;
-  }
-  bar.innerHTML = `<span class="who">signed in</span>
-    <button type="button" class="ghost" id="signout">Leave the desk</button>`;
-  document.getElementById("composer").hidden = false;
-  document.getElementById("drawer").hidden = false;
-  document.getElementById("signout").onclick = async () => {
-    await sb.auth.signOut();
-  };
+async function loadEdition() {
+  const { data } = await sb.from("hourdesk_editions").select("*").order("created_at", { ascending: false }).limit(1);
+  const ed = data && data[0];
+  if (!ed) { $("edTitle").textContent = "The desk is clearing its throat"; $("edBody").textContent = "The first hourly edition will land on the hour."; return; }
+  $("edKicker").textContent = ed.kicker || "This hour";
+  $("edTitle").textContent = ed.title;
+  $("edBody").textContent = ed.body;
+  $("edMeta").textContent = "Filed " + ed.hour_key;
 }
-
-async function loadFeature() {
-  const key = hourKey();
-  const { data } = await sb.from("hour_features").select("title,body,hour_key").eq("hour_key", key).maybeSingle();
-  const slot = parseInt(key.slice(-2), 10) % FALLBACK.length;
-  const [t, b] = FALLBACK[slot];
-  document.getElementById("feat-title").textContent = data?.title || t;
-  document.getElementById("feat-body").textContent = data?.body || b;
-  document.getElementById("feat-meta").textContent = `hour ${key}`;
+function escapeHtml(s) { return String(s).replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;"); }
+function cardHTML(slip, extra = "") {
+  const tilt = ((slip.title.length % 7) - 3) * 0.35;
+  const when = new Date(slip.created_at).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+  return `<article class="card" style="--tilt:${tilt}deg"><h3>${escapeHtml(slip.title)}</h3><p>${escapeHtml(slip.body)}</p><div class="meta">${slip.is_public ? "Public" : "Private"} · ${when}${extra}</div></article>`;
 }
-
-function renderNotes(el, rows) {
-  el.innerHTML = "";
-  if (!rows?.length) {
-    el.innerHTML = "<li><p>The board is empty. That is allowed.</p></li>";
-    return;
-  }
-  rows.forEach((n, i) => {
-    const li = document.createElement("li");
-    li.style.setProperty("--tilt", `${((i % 5) - 2) * 0.35}deg`);
-    const handle = n.profiles?.handle || "anonymous blotter";
-    const when = new Date(n.created_at).toLocaleString();
-    li.innerHTML = `<p>${escapeHtml(n.body)}</p><div class="who">${escapeHtml(handle)} · ${when}${n.is_public ? " · public" : " · drawer"}</div>`;
-    el.appendChild(li);
-  });
+async function loadWall() {
+  const { data } = await sb.from("hourdesk_slips").select("*").eq("is_public", true).order("created_at", { ascending: false }).limit(40);
+  $("wallGrid").innerHTML = (data || []).map((s) => cardHTML(s)).join("") || `<p class="fine">The wall is empty. File something public.</p>`;
 }
-
-function escapeHtml(s) {
-  return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-}
-
-async function loadBoard() {
-  const { data } = await sb
-    .from("notes")
-    .select("id,body,is_public,created_at,profiles(handle)")
-    .eq("is_public", true)
-    .order("created_at", { ascending: false })
-    .limit(40);
-  renderNotes(document.getElementById("board"), data || []);
-}
-
 async function loadMine() {
-  if (!me) return;
-  const { data } = await sb
-    .from("notes")
-    .select("id,body,is_public,created_at,profiles(handle)")
-    .eq("user_id", me.id)
-    .order("created_at", { ascending: false })
-    .limit(40);
-  renderNotes(document.getElementById("mine"), data || []);
+  if (!session) { $("slipForm").classList.add("hidden"); $("deskGate").classList.remove("hidden"); $("mySlips").innerHTML = ""; return; }
+  $("slipForm").classList.remove("hidden"); $("deskGate").classList.add("hidden");
+  const { data } = await sb.from("hourdesk_slips").select("*").eq("author_id", session.user.id).order("created_at", { ascending: false });
+  $("mySlips").innerHTML = (data || []).map((s) => cardHTML(s, ` · <button data-toggle="${s.id}" data-pub="${s.is_public}">${s.is_public ? "Make private" : "Make public"}</button>`)).join("");
 }
-
-async function refresh() {
-  await Promise.all([loadFeature(), loadBoard(), loadMine()]);
-}
-
-document.addEventListener("click", (e) => {
-  const open = e.target.closest("[data-open]");
-  if (!open) return;
-  mode = open.dataset.open;
-  document.getElementById("dlg-title").textContent = mode === "signup" ? "Open a desk" : "Sign in";
-  document.getElementById("dlg-hint").textContent = mode === "signup"
-    ? "A password of six characters or more. That is the whole ceremony."
-    : "Use the same email you opened the desk with.";
-  document.getElementById("auth-err").hidden = true;
-  document.getElementById("dialog").showModal();
-});
-
-document.getElementById("auth-form").addEventListener("submit", async (e) => {
-  if (e.submitter && e.submitter.value === "cancel") return;
+function setAuthUi() { $("authBtn").textContent = session ? "Sign out" : "Sign in"; }
+async function refreshAuth() { const { data } = await sb.auth.getSession(); session = data.session; setAuthUi(); await loadMine(); }
+$("authBtn").onclick = async () => {
+  if (session) { await sb.auth.signOut(); session = null; setAuthUi(); await loadMine(); return; }
+  $("authModal").classList.remove("hidden");
+};
+$("closeAuth").onclick = () => $("authModal").classList.add("hidden");
+$("authForm").onsubmit = async (e) => {
   e.preventDefault();
-  const email = document.getElementById("email").value.trim();
-  const password = document.getElementById("password").value;
-  const err = document.getElementById("auth-err");
-  try {
-    if (mode === "signup") {
-      const { error } = await sb.auth.signUp({ email, password });
-      if (error) throw error;
-    } else {
-      const { error } = await sb.auth.signInWithPassword({ email, password });
-      if (error) throw error;
-    }
-    document.getElementById("dialog").close();
-  } catch (ex) {
-    err.hidden = false;
-    err.textContent = ex.message || "That did not work.";
-  }
-});
-
-document.getElementById("note-form").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  if (!me) return;
-  const body = document.getElementById("body").value.trim();
-  const is_public = document.getElementById("is_public").checked;
-  if (!body) return;
-  const { error } = await sb.from("notes").insert({ user_id: me.id, body, is_public });
-  if (error) {
-    alert(error.message);
+  const email = $("email").value.trim();
+  const password = $("password").value;
+  $("authMsg").textContent = "Working…";
+  if (!password) {
+    const { error } = await sb.auth.signInWithOtp({ email });
+    $("authMsg").textContent = error ? error.message : "Check your inbox for the link.";
     return;
   }
-  document.getElementById("body").value = "";
-  document.getElementById("is_public").checked = false;
-  await refresh();
-});
-
-sb.auth.onAuthStateChange(async (_evt, session) => {
-  me = session?.user || null;
-  setAuthBar(me);
-  await refresh();
-});
-
-tick();
-setInterval(tick, 1000);
-setInterval(loadFeature, 30000);
-refresh();
+  let { error } = await sb.auth.signInWithPassword({ email, password });
+  if (error) {
+    const signed = await sb.auth.signUp({ email, password });
+    error = signed.error;
+    $("authMsg").textContent = error ? error.message : "Account created. Confirm email if asked, then sign in.";
+    if (!error && signed.data.session) { session = signed.data.session; $("authModal").classList.add("hidden"); setAuthUi(); await loadMine(); }
+    return;
+  }
+  session = (await sb.auth.getSession()).data.session;
+  $("authModal").classList.add("hidden"); setAuthUi(); await loadMine();
+};
+$("passBtn").onclick = () => { if (!$("password").value) { $("authMsg").textContent = "Add a password first."; return; } $("authForm").requestSubmit(); };
+$("slipForm").onsubmit = async (e) => {
+  e.preventDefault(); if (!session) return;
+  const { error } = await sb.from("hourdesk_slips").insert({ author_id: session.user.id, title: $("slipTitle").value.trim(), body: $("slipBody").value.trim(), is_public: $("slipPublic").checked });
+  if (error) { alert(error.message); return; }
+  $("slipForm").reset(); await Promise.all([loadMine(), loadWall()]);
+};
+$("mySlips").onclick = async (e) => {
+  const btn = e.target.closest("[data-toggle]"); if (!btn) return;
+  const id = btn.getAttribute("data-toggle"); const pub = btn.getAttribute("data-pub") === "true";
+  await sb.from("hourdesk_slips").update({ is_public: !pub, updated_at: new Date().toISOString() }).eq("id", id);
+  await Promise.all([loadMine(), loadWall()]);
+};
+document.querySelectorAll("[data-goto]").forEach((b) => { b.onclick = () => document.getElementById(b.dataset.goto).scrollIntoView({ behavior: "smooth" }); });
+sb.auth.onAuthStateChange((_e, s) => { session = s; setAuthUi(); loadMine(); });
+tick(); setInterval(tick, 1000); loadEdition(); loadWall(); refreshAuth(); setInterval(loadEdition, 60000);
