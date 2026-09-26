@@ -4,89 +4,83 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>The Hour Desk</title>
-  <meta name="description" content="A living noticeboard. The hour turns, the desk stays." />
+  <meta name="description" content="A small press that turns the page every sixty minutes." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="./styles.css" />
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
-  <script src="./app.js" defer></script>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,400&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;1,8..60,400&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
   <div class="grain" aria-hidden="true"></div>
   <header class="mast">
-    <p class="mark">Est. this afternoon</p>
-    <h1>The Hour Desk</h1>
-    <p class="lede">A blotter that turns over every sixty minutes. Write something. Keep it in the drawer, or pin it where strangers can read it.</p>
-    <div class="clock-row">
-      <div class="clock" id="clock">
-        <span class="face" id="face">--:--:--</span>
-        <span class="zone">local time</span>
-      </div>
-      <div class="until">
-        <span class="label">next turn</span>
-        <span id="until">--:--</span>
-      </div>
+    <div class="mast-left">
+      <p class="mark">Vol. I · Living press</p>
+      <a class="wordmark" href="#">The Hour Desk</a>
     </div>
-    <nav class="auth" id="authbar">
-      <button type="button" class="ghost" data-open="login">Sign in</button>
-      <button type="button" class="ink" data-open="signup">Open a desk</button>
+    <nav class="mast-nav">
+      <button data-goto="edition">Edition</button>
+      <button data-goto="wall">Wall</button>
+      <button data-goto="desk">Desk</button>
     </nav>
+    <div class="mast-right">
+      <span id="clock" class="clock"></span>
+      <button id="authBtn" class="ink-btn">Sign in</button>
+    </div>
   </header>
-
   <main>
-    <section class="feature card" id="feature">
-      <p class="kicker">This hour</p>
-      <h2 id="feat-title">The lamp is still warm</h2>
-      <p id="feat-body">The desk is waiting for the first note of the hour.</p>
-      <p class="meta" id="feat-meta"></p>
+    <section id="edition" class="sheet edition reveal">
+      <p class="kicker" id="edKicker">This hour</p>
+      <h1 id="edTitle">Loading the front page…</h1>
+      <p class="lede" id="edBody"></p>
+      <p class="colophon" id="edMeta"></p>
     </section>
-
-    <section class="compose card" id="composer" hidden>
-      <h2>Leave a note</h2>
-      <form id="note-form">
-        <label for="body">What belongs on the blotter</label>
-        <textarea id="body" name="body" maxlength="800" required placeholder="A sentence you would not mind finding later."></textarea>
-        <div class="row">
-          <label class="check">
-            <input type="checkbox" id="is_public" />
-            Pin this to the public board
-          </label>
-          <button type="submit" class="ink">Pin it</button>
-        </div>
-      </form>
-    </section>
-
-    <section class="board">
-      <div class="board-head">
-        <h2>Public board</h2>
-        <p>Only notes marked public land here. Everything else stays in your drawer.</p>
+    <section id="wall" class="sheet wall">
+      <div class="sec-head">
+        <h2>Public wall</h2>
+        <p>Anything a reader marks public appears here. Private slips stay in their drawer.</p>
       </div>
-      <ul id="board" class="notes"></ul>
+      <div id="wallGrid" class="masonry"></div>
     </section>
-
-    <section class="drawer card" id="drawer" hidden>
-      <h2>Your drawer</h2>
-      <ul id="mine" class="notes compact"></ul>
+    <section id="desk" class="sheet desk">
+      <div class="sec-head">
+        <h2>Your drawer</h2>
+        <p>Write here. Toggle public when you want it on the wall.</p>
+      </div>
+      <div id="deskGate" class="gate">
+        <p>Sign in to keep slips. Email magic link — no password required if you prefer.</p>
+      </div>
+      <form id="slipForm" class="slip-form hidden">
+        <input id="slipTitle" maxlength="140" placeholder="Title" required />
+        <textarea id="slipBody" maxlength="8000" rows="8" placeholder="The thing itself." required></textarea>
+        <label class="check">
+          <input type="checkbox" id="slipPublic" />
+          Mark public — show on the wall
+        </label>
+        <button type="submit" class="ink-btn solid">File slip</button>
+      </form>
+      <div id="mySlips" class="stack"></div>
     </section>
   </main>
-
-  <dialog id="dialog">
-    <form method="dialog" class="auth-form" id="auth-form">
-      <h2 id="dlg-title">Sign in</h2>
-      <p class="hint" id="dlg-hint">Use a real email. Nothing fancy.</p>
-      <label>Email <input type="email" id="email" required autocomplete="email" /></label>
-      <label>Password <input type="password" id="password" required minlength="6" autocomplete="current-password" /></label>
-      <p class="err" id="auth-err" hidden></p>
-      <div class="row">
-        <button value="cancel" class="ghost">Cancel</button>
-        <button value="go" class="ink" id="auth-go" type="submit">Continue</button>
-      </div>
-    </form>
-  </dialog>
-
+  <div id="authModal" class="modal hidden" role="dialog" aria-modal="true">
+    <div class="modal-card">
+      <button class="close" id="closeAuth" aria-label="Close">×</button>
+      <h3>Sign in</h3>
+      <p class="fine">We’ll send a magic link, or you can use a password.</p>
+      <form id="authForm">
+        <input type="email" id="email" placeholder="you@example.com" required />
+        <input type="password" id="password" placeholder="Password (optional)" />
+        <div class="row">
+          <button type="submit" class="ink-btn solid">Send magic link</button>
+          <button type="button" class="ink-btn" id="passBtn">Use password</button>
+        </div>
+      </form>
+      <p id="authMsg" class="msg"></p>
+    </div>
+  </div>
   <footer>
-    <p>The Hour Desk does not keep score. It just keeps hours.</p>
+    <p>Set in Fraunces &amp; Source Serif. Editions refresh on the hour.</p>
   </footer>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="app.js"></script>
 </body>
 </html>

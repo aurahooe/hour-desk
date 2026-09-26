@@ -1,3 +1,7 @@
 # The Hour Desk
 
-A small noticeboard. The featured slip changes every hour. Signed-in people can leave notes; anything marked public appears on the board.
+A living press. Front page turns every hour.
+
+Live source: open `index.html` or enable GitHub Pages on this repo (Settings → Pages → Deploy from branch `main` / root).
+
+Auth and storage run on the connected Supabase project.
